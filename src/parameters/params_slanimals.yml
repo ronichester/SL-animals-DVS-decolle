@@ -1,0 +1,75 @@
+#Decolle method main parameters
+alpha:                  #decay dynamics of the membrane potential 'U'
+- 0.97                    #alpha = exp(-dt/tau_mem)
+alpharp:                #decay dynamics of the refractory state 'R'
+- 0.65                    #gama = exp(-dt/tau_ref)
+beta:                   #decay dynamics of the synaptic state 'Q'
+- 0.92                    #beta = exp(-dt/tau_syn)
+reg_l:                  #regularizer lambda1 (lambda2 = 3e-3*lambda1) 
+- .0                      #layer 1
+- .0                      #layer 2
+- .0                      #layer 3
+- .0                      #(layer 4)
+init_theta:             #this parameter is for error triggered Decolle
+- 5.e-5
+- 5.e-5
+- 5.e-5
+- 5.e-5
+online_update: True     #whether updates should be made at every timestep
+random_tau:    False    #to be used with class LIFLayerVariableTau(LIFLayer)
+
+#Dataset and simulation parameters
+dataset:       'slanimals'
+data_path:     ../data/              ## /home/data/
+file_list:     ../data/filelist.txt  #filelist_excludingS3.txt  ## /home/data/filelist.txt
+input_shape:            #input shape: (2,128,128) reduced to (2,32,32)
+- 2
+- 32
+- 32
+batch_size: 76          #batch size (19*4)               
+deltat: 1000            #dt, temporal window in microseconds (time bin 1ms)
+chunk_size_train: 500   #sample length (train) in ms
+chunk_size_test: 1800   #sample length (test) in ms
+burnin_steps: 100       #time during which the dynamics will be run, but no
+                          #updates are made
+
+#Network architecture
+num_layers: 3           #total number of network layers
+num_conv_layers: 3      #number of convolutional layers
+num_mlp_layers: 0       #number of dense layers
+#conv layers
+Nhid:                   #number of conv. channels in hidden layers
+- 64                      #conv1 7x7 x 64
+- 128                     #conv2 7x7 x 128
+- 128                     #conv3 7x7 x 128
+kernel_size:            #conv. kernel 7x7
+- 7
+pool_size:              #MaxPooling size
+- 2                       #pool1  2x2 (DVS-gestures 2x2, SL-animals 1x1)
+- 1                       #pool2  1x1
+- 2                       #pool3  2x2
+#MLP layers
+#Mhid:                   #number of MLP neurons in hidden layers
+#- 25                      #25FC
+#local output layers
+dropout:
+- 0.5
+out_channels: 19        #output size (19 classes)
+#others
+lc_ampl: 2.0            #amplitude of the dense layer random weight initializ.
+with_output_layer: False  #include a global output layer??
+
+#Training parameters
+num_epochs: 400         #training epochs
+save_interval: 50       #interval of epochs to save a checkpoint
+learning_method: 'rtrl'
+loss: smoothL1          #loss type
+optimizer: adamax       #optimizer ADAMAX
+betas:                  #optimizer parameters
+- 0.0                     #beta1
+- 0.95                    #beta2
+learning_rate: 3.6e-4   #initial LR (1.0e-9 in the paper)
+lr_drop_factor: 5       #divide LR by 5 (every 500 steps in the paper)
+lr_drop_interval: 50    #interval of epochs to drop LR by a factor
+num_dl_workers: 6       #number of workers (parallel processing)
+batches_per_epoch: -1   #change this to limit num_batches/epoch (default -1)
