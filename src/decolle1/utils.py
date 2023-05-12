@@ -362,9 +362,9 @@ def train(gen_train, decolle_loss, net, opt, epoch, burnin, online_update=True, 
     
     #my custom implementation
     fire_rate = np.round(1000 * np.array(act_rate), 1)
-    total_loss /= len(gen_train)                 #avg. loss per batch
-    print('Training Loss {0}'.format(total_loss))   #loss per batch
-    print('Firing Rate   {0}\n'.format(fire_rate))  #firing rate @ each layer
+    total_loss /= len(gen_train)                    #avg. loss per batch
+    print('Firing Rate   {0}'.format(fire_rate))  #firing rate @ each layer
+    print('Training Loss {0}\n'.format(total_loss))   #loss per batch
     
     return total_loss, fire_rate
     

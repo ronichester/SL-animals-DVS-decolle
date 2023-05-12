@@ -74,7 +74,7 @@ if __name__ == '__main__':
     
     #print header
     print('\nWELCOME TO DECOLLE TRAINING!')
-    print('Starting 4-fold cross validation (train/test only): Please wait...\n')
+    print('Starting 4-fold cross validation (train/test only):\n')
     global_st_time = datetime.now()       #monitor total training time 
     
     #CROSS-VALIDATION: iterate for each fold
@@ -82,12 +82,9 @@ if __name__ == '__main__':
         
         print("FOLD {}:".format(fold))
         print("-----------------------------------------------")
-        test_acc_hist, test_loss_hist, train_loss_hist = [], [], []
         
-        # #**********************************************************
-        # if fold==1:  #DELETE LATER
-        #     print('Single train/test fold training for now.') 
-        # #**********************************************************
+        #initialize histories
+        test_acc_hist, test_loss_hist, train_loss_hist = [], [], []
     
         #logging statistics with tensorboard, update directories
         writer = SummaryWriter(os.path.join(logs_dir, 'fold{}'.format(fold)))
@@ -169,7 +166,12 @@ if __name__ == '__main__':
             if net.with_output_layer:
                 loss[-1] = cross_entropy_one_hot
             decolle_loss = DECOLLELoss(net = net, loss_fn = loss, reg_l=reg_l)
-   
+        
+        # #**********************************************************
+        # if fold==1:  #DELETE LATER
+        #     print('Single train/test fold training for now.') 
+        # #**********************************************************
+        
         #Initialize the network, if not resuming from a checkpoint
         if args.resume_from is None:
             """
@@ -208,10 +210,10 @@ if __name__ == '__main__':
             m = max(len(x) for x in params)
             for k, v in zip(params.keys(), params.values()):
                 print('{}{} : {}'.format(k, ' ' * (m - len(k)), v))
-
+        
+        # --------TRAINING LOOP----------
         print('\n------Starting training with {} DECOLLE layers-------'.format(len(net)))
 
-        # --------TRAINING LOOP----------
         if not args.no_train:
             for e in range(starting_epoch , params['num_epochs'] ):
                
@@ -231,9 +233,10 @@ if __name__ == '__main__':
                     params['burnin_steps'], 
                     online_update=params['online_update']
                     )
+                #log train_loss history
                 train_loss_hist.append(train_loss)
+                #log firing rate to tensorboard(each layer)
                 if not args.no_save:
-                    #log firing rate (each layer)
                     for i in range(len(net)):
                         writer.add_scalar('/Firing_rate/{0}'.format(i), 
                                           fire_rate[i], e)
@@ -243,10 +246,11 @@ if __name__ == '__main__':
                     test_loader, decolle_loss, net, params['burnin_steps'], 
                     print_error = False
                     )
-                test_acc_hist.append(test_acc)
+                #log test_loss and test_accuracy to history
                 test_loss_hist.append(test_loss)
+                test_acc_hist.append(test_acc)
+                #log statistics to tensorboard (accuracy and loss)
                 if not args.no_save:
-                    #log statistics (accuracy and loss)
                     write_stats(e, test_acc, test_loss, writer)
                     np.save(os.path.join(output_dir, 
                         'test_acc_fold{}.npy'.format(fold)), 
@@ -254,6 +258,11 @@ if __name__ == '__main__':
                     np.save(os.path.join(output_dir, 
                         'test_loss_fold{}.npy'.format(fold)),
                         np.array(test_loss_hist))
+                
+                #print min. test loss / max. test accuracy
+                print('(Max accuracy: {:.2f}%  | Min. loss: {:.2f})'.format(
+                    100 * np.array(test_acc_hist).max(),
+                    np.array(test_loss_hist).min()))
                
                 #saving checkpoint
                 if (e % params['save_interval']) == 0 and e!=0:
@@ -307,7 +316,7 @@ if __name__ == '__main__':
         best_losses.append(min_loss)
         best_accuracies.append(max_acc)
             
-            #end of IF FOLD==1
+        #end of IF FOLD==1
            
         writer.close()
         #end of fold
