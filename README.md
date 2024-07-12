@@ -21,7 +21,7 @@ The reported results in the SL-animals paper were divided in two: results with t
 |       | Full Dataset | Reduced Dataset |
 |:-:|:-:|:-:|
 | Reported Results    | 70.6 +- 7.8 % | 77.6 +- 6.5 % |
-| This Implementation | 62.19 +- 3.99 % | 62.91 +- 4.04 % |
+| This Implementation | 64.14 +- 3.61 % | 65.16 +- 2.86 % |
 
            
 ## Requirements
@@ -39,13 +39,14 @@ This package contains the necessary python files to train a Spiking Neural Netwo
 Package Contents:  
 - dataset.py
 - decole_tools.py
+- sl_animals_decolle.py
 - train_test_only.py
 - parameters/params_slanimals.yml
 - decolle1 (folder with the custom decolle method)
 
 The SL-Animals-DVS dataset implementation code is in *dataset.py*, and it's basically a Pytorch Dataset object. The library [*Tonic*](https://tonic.readthedocs.io/en/latest/index.html#) was used to read and process the DVS recordings.  
 Some auxiliary functions to slice the dataset, split the dataset, plot and animate dataset samples and some getters are in *decolle_tools.py*.  
-The main program is in *train_test_only.py*, which uses a simple, yet not optimal, experimental procedure for training a network using cross validation after dividing the dataset into train and test sets. This was done in an effort to replicate the published results.  
+The main program is in *train_test_only.py*, which uses a simple, yet not optimal, experimental procedure for training a network using cross validation after dividing the dataset into train and test sets. This was done in an effort to replicate the published results.  Another approach includes splitting the dataset into train, validation and test subsets, using cross validation as well - this is done in *sl_animals_decolle.py*. Note that the results are obviously different when using train-validation-test.
 The file *params_slanimals.yml* contains the main parameters that can be customized like *batch size*, *sampling time*, *sample length*, *neuron type*, *data path*, and many others.  
 Finally, the *decolle1* folder contains the original decolle software implementation, slightly modified for outputting plots, easier display while training, and minor changes.
  

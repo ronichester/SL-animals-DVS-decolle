@@ -5,13 +5,11 @@ alpharp:                #decay dynamics of the refractory state 'R'
 - 0.65                    #gama = exp(-dt/tau_ref)
 beta:                   #decay dynamics of the synaptic state 'Q'
 - 0.92                    #beta = exp(-dt/tau_syn)
-reg_l:                  #regularizer lambda1 (lambda2 = 3e-3*lambda1) 
+reg_l:                  #regularizer lambda1 (lambda2 = 3e-3*lambda1) -> 1 line for each layer
 - .0                      #layer 1
 - .0                      #layer 2
 - .0                      #layer 3
-- .0                      #(layer 4)
-init_theta:             #this parameter is for error triggered Decolle
-- 5.e-5
+init_theta:             #this parameter is for error triggered Decolle -> 1 line for each layer
 - 5.e-5
 - 5.e-5
 - 5.e-5
@@ -36,8 +34,8 @@ burnin_steps: 100       #time during which the dynamics will be run, but no
 #Network architecture
 num_layers: 3           #total number of network layers
 num_conv_layers: 3      #number of convolutional layers
-num_mlp_layers: 0       #number of dense layers
-#conv layers
+num_mlp_layers: 0       #number of dense layers (changed to 0, original SL-animals: 2)
+#CONV layers
 Nhid:                   #number of conv. channels in hidden layers
 - 64                      #conv1 7x7 x 64
 - 128                     #conv2 7x7 x 128
@@ -45,19 +43,20 @@ Nhid:                   #number of conv. channels in hidden layers
 kernel_size:            #conv. kernel 7x7
 - 7
 pool_size:              #MaxPooling size
-- 2                       #pool1  2x2 (DVS-gestures 2x2, SL-animals 1x1)
-- 1                       #pool2  1x1
-- 2                       #pool3  2x2
-#MLP layers
+- 2                       #pool1 2x2 (changed to 2x2, original SL-animals: 1x1)
+- 2                       #pool2 2x2 (changed to 2x2, original SL-animals: 1x1)
+- 2                       #pool3 2x2
+#DENSE (mlp) layers
 #Mhid:                   #number of MLP neurons in hidden layers
 #- 25                      #25FC
-#local output layers
-dropout:
-- 0.5
+#OUTPUT layer
+with_output_layer: False #include the output layer? (Linear layer)
 out_channels: 19        #output size (19 classes)
-#others
-lc_ampl: 2.0            #amplitude of the dense layer random weight initializ.
-with_output_layer: False  #include a global output layer??
+#DROPOUT
+dropout:
+- 0.5                   #default 50% dropout
+#LOCAL readouts
+lc_ampl: 2.0            #amplitude of the fixed matrix (to the readouts) random weight initializ.
 
 #Training parameters
 num_epochs: 400         #training epochs

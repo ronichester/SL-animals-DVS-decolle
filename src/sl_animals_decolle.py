@@ -15,6 +15,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from datetime import datetime
 from tensorboardX import SummaryWriter 
+from sklearn.model_selection import train_test_split
 from decolle1.init_functions import init_LSUV
 from decolle1.lenet_decolle_model import LenetDECOLLE, DECOLLELoss, LIFLayer #, LIFLayerVariableTau
 from decolle1.utils import (parse_args, train, test, write_stats, #accuracy,
@@ -40,7 +41,8 @@ params = get_params(params_file)
 args = parse_args(params_file)
 args.save_dir=params['dataset']
 starting_epoch = 0
-best_losses, best_accuracies = [], []  #initialize best loss and acc history
+best_losses, best_accuracies = [], []  #initialize best validation loss and acc history
+test_losses, test_accuracies = [], []
 device = args.device                   #default = 'cuda'
 seed = args.seed                       #default = 0
 
@@ -70,7 +72,7 @@ if __name__ == '__main__':
     
     #print header
     print('\nWELCOME TO DECOLLE TRAINING!')
-    print('Starting 4-fold cross validation (train/test only): Please wait...\n')
+    print('Starting 4-fold cross validation (train/validation/test): Please wait...\n')
     global_st_time = datetime.now()       #monitor total training time 
     
     #CROSS-VALIDATION: iterate for each fold
@@ -80,24 +82,33 @@ if __name__ == '__main__':
         print("-----------------------------------------------")
 
         #initialize histories
-        test_acc_hist, test_loss_hist, train_loss_hist = [], [], []
-        
-        # #**********************************************************
-        # if fold==1:  #DELETE LATER
-        #     print('Single train/test fold training for now.') 
-        # #**********************************************************
+        best_loss = 200
+        val_acc_hist, val_loss_hist, train_loss_hist = [], [], []
     
         #logging statistics with tensorboard, update directories
         writer = SummaryWriter(os.path.join(logs_dir, 'fold{}'.format(fold)))
         checkpnt_dir = os.path.join(checkpoint_root_dir, 'fold{}'.format(fold))
 
-        #definining train and test Datasets
+        #divide train_set into train and validation (85-15)
+        train_set, val_set = train_test_split(train_set, test_size=0.15, 
+                                              random_state=seed+1)
+
+        #definining train, validation and test Datasets
         training_set = AnimalsDvsSliced(
             dataPath     = params['data_path'],
             fileList     = train_set,
             samplingTime = params['deltat']/1000,  #in ms
             sampleLength = params['chunk_size_train'],
             randomCrop   = True,
+            redFactor    = 0.25,  #reduction of input size from 128 to 32
+            binMode      = 'SUM'  #'OR'
+        )
+        validation_set = AnimalsDvsSliced(
+            dataPath     = params['data_path'],
+            fileList     = val_set,
+            samplingTime = params['deltat']/1000,  #in ms
+            sampleLength = params['chunk_size_test'],
+            randomCrop   = False, 
             redFactor    = 0.25,  #reduction of input size from 128 to 32
             binMode      = 'SUM'  #'OR'
         )
@@ -116,6 +127,11 @@ if __name__ == '__main__':
             dataset=training_set, 
             batch_size=params['batch_size'],
             shuffle=False,
+            num_workers=params['num_dl_workers'])
+        val_loader = torch.utils.data.DataLoader(
+            dataset=validation_set, 
+            batch_size=params['batch_size'],
+            shuffle=False, 
             num_workers=params['num_dl_workers'])
         test_loader = torch.utils.data.DataLoader(
             dataset=testing_set, 
@@ -167,6 +183,11 @@ if __name__ == '__main__':
             if net.with_output_layer:
                 loss[-1] = cross_entropy_one_hot
             decolle_loss = DECOLLELoss(net = net, loss_fn = loss, reg_l=reg_l)
+
+        # #**********************************************************
+        # if fold==4:  #DELETE LATER
+        #     print('Single train/test fold training for now.') 
+        # #**********************************************************
    
         #Initialize the network, if not resuming from a checkpoint
         if args.resume_from is None:
@@ -212,14 +233,14 @@ if __name__ == '__main__':
         
         if not args.no_train:
             for e in range(starting_epoch , params['num_epochs'] ):
-               
+            
                 #learning rate adjustment (every 'lr_drop_interval' epochs)
                 actual_lr = opt.param_groups[-1]['lr']
                 if (e % params['lr_drop_interval']) == 0 and e!=0:  #if interval
                     next_lr = actual_lr / params['lr_drop_factor']  #calc. next LR
                     opt.param_groups[-1]['lr'] = next_lr            #update LR
                     print('\n-> Changing learning rate from {} to {}'
-                          .format(actual_lr, next_lr))
+                        .format(actual_lr, next_lr))
                 else:  #maintain learning rate
                     print('\n-> Current learning rate: {}'.format(actual_lr))
     
@@ -235,86 +256,119 @@ if __name__ == '__main__':
                 if not args.no_save:
                     for i in range(len(net)):
                         writer.add_scalar('/Firing_rate/{0}'.format(i), 
-                                          fire_rate[i], e)
+                                        fire_rate[i], e)
                 
-                #test the network
-                test_loss, test_acc = test(
-                    test_loader, decolle_loss, net, params['burnin_steps'], 
+                #validate the network
+                val_loss, val_acc = test(
+                    val_loader, decolle_loss, net, params['burnin_steps'], 
                     print_error = False
                     )
-                #log test_loss and test_accuracy to history
-                test_loss_hist.append(test_loss)
-                test_acc_hist.append(test_acc)
-                #log statistics to tensorboard (accuracy and loss)
+                #log val_loss and val_accuracy to history
+                val_loss_hist.append(val_loss)
+                val_acc_hist.append(val_acc)
+                #log statistics to tensorboard (val. accuracy and loss)
                 if not args.no_save:
-                    write_stats(e, test_acc, test_loss, writer)
+                    write_stats(e, val_acc, val_loss, writer)
                     np.save(os.path.join(output_dir, 
-                        'test_acc_fold{}.npy'.format(fold)), 
-                        np.array(test_acc_hist))
+                        'val_acc_fold{}.npy'.format(fold)), 
+                        np.array(val_acc_hist))
                     np.save(os.path.join(output_dir, 
-                        'test_loss_fold{}.npy'.format(fold)),
-                        np.array(test_loss_hist))
+                        'val_loss_fold{}.npy'.format(fold)),
+                        np.array(val_loss_hist))
                 
-                #print min. test loss / max. test accuracy
-                print('(Max accuracy: {:.2f}%  | Min. loss: {:.2f})'.format(
-                    100 * np.array(test_acc_hist).max(),
-                    np.array(test_loss_hist).min()))
-               
+                #print min. val loss / max. val accuracy
+                min_val_loss = np.array(val_loss_hist).min()
+                max_val_acc = np.array(val_acc_hist).max()
+                print('(Max. accuracy: {:.2f}%  | Min. loss: {:.2f})'.format(
+                    100 * max_val_acc, min_val_loss))
+            
                 #saving checkpoint
                 if (e % params['save_interval']) == 0 and e!=0:
                     print('---------------Epoch {}-------------'.format(e))
                     if not args.no_save:
                         print('---------Saving checkpoint---------')
                         save_checkpoint(e, checkpnt_dir, net, opt)
-               
+                
+                #saving the model best weights if lower loss found
+                if min_val_loss < best_loss:
+                    best_loss = min_val_loss #update best_loss
+                    print('---------Saving best model weights---------')
+                    torch.save(net.state_dict(), 
+                        os.path.join(output_dir,
+                                    'model_weights_fold{}.pth'.format(fold)))
+
+            
                 #end of this epoch
             #end of all epochs
-       
+    
             #plot results
             #accuracy
-            print('Test Accuracy History (fold {}):'.format(fold))
+            print('\nplotting validation accuracy history... (fold {}):'.format(fold))
             plt.figure()
-            plt.plot(test_acc_hist)
+            plt.plot(val_acc_hist)
             plt.xlabel('Epochs', fontsize=14)
             plt.ylabel('Accuracy', fontsize=14)
-            plt.title('Test Accuracy on all layers', fontweight="bold", fontsize=14)
+            plt.title('Validation Accuracy on all layers', fontweight="bold", fontsize=14)
             plt.legend(["layer {}".format(l) for l in range(1, params['num_layers']+1)])
             plt.grid(visible=True, axis='y')
             # plt.ylim((0.0, 1.0))
             plt.savefig(os.path.join(output_dir, 
                                     'accuracy_fold{}.png'.format(fold)))
             #loss
-            print('Train/Test Loss History (fold {}):'.format(fold))
+            print('plotting train/val loss history... (fold {}):'.format(fold))
             plt.figure()
             plt.plot(train_loss_hist, ':')
             plt.gca().set_prop_cycle(None)  #reset color cycle
-            plt.plot(test_loss_hist)
+            plt.plot(val_loss_hist)
             plt.xlabel('Epochs', fontsize=14)
             plt.ylabel('Loss', fontsize=14)
             plt.title('Loss on all layers', fontweight="bold", fontsize=14)
             plt.legend(["train layer {}".format(l) for l in range(1, params['num_layers']+1)] 
-                       + ["test layer {}".format(l) for l in range(1, params['num_layers']+1)])
+                    + ["validation layer {}".format(l) for l in range(1, params['num_layers']+1)])
             plt.grid(visible=True, axis='y')
             plt.savefig(os.path.join(output_dir, 
                                     'loss_fold{}.png'.format(fold)))
             
             #print best results
-            print('Best Results - fold {}:'.format(fold))
+            print('\nBest Validation Results - fold {}:'.format(fold))
             print('----------------------')
-            min_loss = np.array(test_loss_hist).min()
-            max_acc = np.array(test_acc_hist).max()
+            min_loss = np.array(val_loss_hist).min()
+            max_acc = np.array(val_acc_hist).max()
             range_layers = params['num_layers'] + 2 if params['with_output_layer'] else \
-                           params['num_layers'] + 1 
+                        params['num_layers'] + 1 
             for l in range(1, range_layers):
-                print('Max Test Accuracy on Layer {}:  {:.2f}%'.format(l, 
-                      (100 * max(np.array(test_acc_hist)[:, l-1]))))     
+                print('Max Validation Accuracy on Layer {}:  {:.2f}%'.format(l, 
+                    (100 * max(np.array(val_acc_hist)[:, l-1]))))    
+            print() #empty line for separation only 
         # --------END OF TRAINING LOOP----------
             
-        #save this fold's best losses and accuracies in history
+        #save this fold's validation best losses and accuracies in history
         best_losses.append(min_loss)
         best_accuracies.append(max_acc)
-            
-            #end of IF FOLD==1
+        
+        #TEST the network on testing data
+        print("START TESTING:")
+        print("--------------")
+        print("Loading pre-trained weights...")
+        print('Testing - fold {}:'.format(fold))
+        net.load_state_dict(
+            torch.load(os.path.join(output_dir, 'model_weights_fold{}.pth'.format(fold)))
+            )
+        test_loss, test_acc = test(
+            test_loader, decolle_loss, net, params['burnin_steps'], 
+            print_error = False
+            )
+        
+        #test_loss and test_acc are n_layer arrays]; save best layer's loss and accuracy
+        best_test_loss = test_loss.min()
+        best_test_acc = test_acc.max()
+
+        #log this fold's best test_loss and best test_accuracy to history
+        print('Saving Test loss and accuracy - fold {}...\n'.format(fold))
+        test_losses.append(best_test_loss)
+        test_accuracies.append(best_test_acc)
+
+                #end of IF FOLD==1
            
         writer.close()
         #end of fold
@@ -330,17 +384,19 @@ if __name__ == '__main__':
     print('\nGlobal Training Time:', global_end_time - global_st_time)
    
     #print final results
-    print("\nMin Test Loss on 4 folds:", best_losses)
-    print("Min Test Loss:     {:.2f} +- {:.2f}".format(
+    print("\nMin Validation Loss on 4 folds:", best_losses)
+    print("Min Validation Loss:     {:.2f} +- {:.2f}".format(
         np.mean(best_losses), np.std(best_losses)))
 
-    print("\nMax Test Accuracy on 4 folds:", best_accuracies)
-    print("Max Test Accuracy:     {:.2f}% +- {:.2f}%".format(
+    print("\nMax Validation Accuracy on 4 folds:", best_accuracies)
+    print("Max Validation Accuracy:     {:.2f}% +- {:.2f}%".format(
         100 * np.mean(best_accuracies), 100 * np.std(best_accuracies)))
-        
     
-#LOG OF RESULTS
-#DVS-Gestures: 95.14% Max Test Accuracy
-        
-        
-          
+    print("\nTest Loss on 4 folds:", test_losses)
+    print("Average Test Loss:     {:.2f} +- {:.2f}".format(
+        np.mean(test_losses), np.std(test_losses)))
+
+    print("\nTest Accuracy on 4 folds:", test_accuracies)
+    print("Average Test Accuracy:     {:.2f}% +- {:.2f}%".format(
+        100 * np.mean(test_accuracies), 100 * np.std(test_accuracies)))
+       
