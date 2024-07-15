@@ -46,7 +46,7 @@ Package Contents:
 
 The SL-Animals-DVS dataset implementation code is in *dataset.py*, and it's basically a Pytorch Dataset object. The library [*Tonic*](https://tonic.readthedocs.io/en/latest/index.html#) was used to read and process the DVS recordings.  
 Some auxiliary functions to slice the dataset, split the dataset, plot and animate dataset samples and some getters are in *decolle_tools.py*.  
-The main program is in *train_test_only.py*, which uses a simple, yet not optimal, experimental procedure for training a network using cross validation after dividing the dataset into train and test sets. This was done in an effort to replicate the published results.  Another approach includes splitting the dataset into train, validation and test subsets, using cross validation as well - this is done in *sl_animals_decolle.py*. Note that the results are obviously different when using train-validation-test.
+The main program is in *train_test_only.py*, which uses a simple experimental procedure for training a network using cross validation after dividing the dataset into train and test sets. This was done in an effort to replicate the published results.  Another approach includes splitting the dataset into train, validation and test subsets, using cross validation as well - this is done in *sl_animals_decolle.py*. Note that the results are obviously different when using train-validation-test.
 The file *params_slanimals.yml* contains the main parameters that can be customized like *batch size*, *sampling time*, *sample length*, *neuron type*, *data path*, and many others.  
 Finally, the *decolle1* folder contains the original decolle software implementation, slightly modified for outputting plots, easier display while training, and minor changes.
  
