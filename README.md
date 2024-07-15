@@ -1,5 +1,5 @@
-# SL-animals-DVS training with DECOLLE
-This repository contains a custom DECOLLE (Deep Continuous Local Learning) implementation on the SL-Animals-DVS dataset using Pytorch and the DECOLLE package software.
+# SL-animals-DVS training with DECOLLE (improved)
+This repository contains a custom DECOLLE (Deep Continuous Local Learning) implementation on the SL-Animals-DVS dataset using Pytorch and the DECOLLE package software. The first results reported in this repository were an initial atempt to reproduce the published results. Additionally, improvements were made to the original implementation, optimizing the input data and the spiking neural network in order to enhance the gesture recognition performance. Details of the techniques applied can be found in the following [conference paper](https://ieeexplore.ieee.org/document/10506133), published in LASCAS 2024.
 
 **A BRIEF INTRODUCTION:**  
 DECOLLE is an online training method that directly trains a Spiking Neural Network (SNN), updating the network weights at each single time step. 
@@ -22,6 +22,7 @@ The reported results in the SL-animals paper were divided in two: results with t
 |:-:|:-:|:-:|
 | Reported Results    | 70.6 +- 7.8 % | 77.6 +- 6.5 % |
 | This Implementation | 64.14 +- 3.61 % | 65.16 +- 2.86 % |
+| **Optimized Version**   | **75.12 +- 0.91%** |       N/A       |
 
            
 ## Requirements
@@ -46,8 +47,11 @@ Package Contents:
 
 The SL-Animals-DVS dataset implementation code is in *dataset.py*, and it's basically a Pytorch Dataset object. The library [*Tonic*](https://tonic.readthedocs.io/en/latest/index.html#) was used to read and process the DVS recordings.  
 Some auxiliary functions to slice the dataset, split the dataset, plot and animate dataset samples and some getters are in *decolle_tools.py*.  
-The main program is in *train_test_only.py*, which uses a simple experimental procedure for training a network using cross validation after dividing the dataset into train and test sets. This was done in an effort to replicate the published results.  Another approach includes splitting the dataset into train, validation and test subsets, using cross validation as well - this is done in *sl_animals_decolle.py*. Note that the results are obviously different when using train-validation-test.
+
+The main program is in *sl_animals_slayer.py*, which uses the correct experimental procedure for training a network using cross validation after dividing the dataset into train, validation and test sets. A simpler version of the main program is in *train_test_only.py*, which is basically the same except dividing the dataset only into train and test sets, in an effort to replicate the published results. Apparently, the benchmark results were reported in this simpler dataset split configuration.  
+
 The file *params_slanimals.yml* contains the main parameters that can be customized like *batch size*, *sampling time*, *sample length*, *neuron type*, *data path*, and many others.  
+
 Finally, the *decolle1* folder contains the original decolle software implementation, slightly modified for outputting plots, easier display while training, and minor changes.
  
 ## Use
@@ -71,6 +75,7 @@ tensorboard --logdir=results
   
 
 ## References 
+- C. R. Schechter and J. G. R. C. Gomes, ["Enhancing Gesture Recognition Performance Using Optimized Event-Based Data Sample Lengths and Crops"](https://doi.org/10.1109/LASCAS60203.2024.10506133), 2024 IEEE 15th Latin America Symposium on Circuits and Systems (LASCAS), Punta del Este, Uruguay, pp. 1-5, (2024).
 - Vasudevan, A., Negri, P., Di Ielsi, C. et al. ["SL-Animals-DVS: event-driven sign language animals dataset"](https://doi.org/10.1007/s10044-021-01011-w) . *Pattern Analysis and Applications 25, 505–520 (2021)*. 
 - Kaiser, Jacques and Mostafa, Hesham and Neftci, Emre; [Synaptic Plasticity Dynamics for Deep Continuous Local Learning (DECOLLE)](https://www.frontiersin.org/article/10.3389/fnins.2020.00424); *Frontiers in Neuroscience, vol.14 pages 424 (2020)*
 - The original dataset can be downloaded [here](http://www2.imse-cnm.csic.es/neuromorphs/index.php/SL-ANIMALS-DVS-Database)
